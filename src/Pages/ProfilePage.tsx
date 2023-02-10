@@ -1,5 +1,5 @@
 import "./ProfilePage.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, CSSProperties } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
 import { useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
@@ -282,9 +282,11 @@ export default function ProfilePage() {
   }
 
   const w = window.document.querySelector(".page")?.clientWidth;
+  const style = user?.banner ? ({ ["--img-url"]: `url(${user.banner})` } as CSSProperties) : {};
   return (
     <>
       <div className="profile flex">
+        {user?.banner && <div className="banner-bg" style={style} />}
         {user?.banner && <ProxyImg alt="banner" className="banner" src={user.banner} size={w} />}
         <div className="profile-wrapper flex">
           {avatar()}

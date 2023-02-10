@@ -230,3 +230,29 @@
   font-weight: normal;
   margin-left: 4px;
 }
+
+.banner-bg {
+  width: 1438px;
+  height: 758px;
+  position: absolute;
+  top: 0;
+  left: calc(50% - 750px);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, #000000 81.25%),
+    linear-gradient(to right, #000000, transparent 25%), linear-gradient(to left, #000000, transparent 25%),
+    var(--img-url);
+  filter: blur(8px);
+  z-index: -1;
+  display: none;
+}
+
+.light .banner-bg {
+  background: linear-gradient(180deg, rgba(241, 241, 241, 0.7) 0%, #f1f1f1 81.25%),
+    linear-gradient(to right, #f1f1f1, transparent 25%), linear-gradient(to left, #f1f1f1, transparent 25%),
+    var(--img-url);
+}
+
+@media (min-width: 720px) {
+  .banner-bg {
+    display: unset;
+  }
+}
