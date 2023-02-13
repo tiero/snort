@@ -17,6 +17,7 @@ import useWebln from "Hooks/useWebln";
 import useHorizontalScroll from "Hooks/useHorizontalScroll";
 
 import messages from "./messages";
+import { openWallet } from "Wallet";
 
 interface LNURLService {
   nostrPubkey?: HexKey;
@@ -247,6 +248,16 @@ export default function LNURLTip(props: LNURLTipProps) {
     );
   }
 
+  async function payWithWallet(pr: string) {
+    const cfg = window.localStorage.getItem("wallet-lndhub");
+    if (cfg) {
+      const wallet = await openWallet(cfg);
+      const rsp = await wallet.payInvoice(pr);
+      console.debug(rsp);
+      setSuccess(rsp as LNURLSuccessAction);
+    }
+  }
+
   function payInvoice() {
     if (success) return null;
     const pr = invoice?.pr;
@@ -263,6 +274,9 @@ export default function LNURLTip(props: LNURLTipProps) {
                 </div>
                 <button className="wallet-action" type="button" onClick={() => window.open(`lightning:${pr}`)}>
                   <FormattedMessage {...messages.OpenWallet} />
+                </button>
+                <button className="wallet-action" type="button" onClick={() => payWithWallet(pr)}>
+                  <FormattedMessage defaultMessage="Pay with Snort" />
                 </button>
               </>
             )}
