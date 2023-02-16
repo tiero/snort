@@ -1,7 +1,7 @@
 import { AnyAction, createSlice, PayloadAction, ThunkAction } from "@reduxjs/toolkit";
 import * as secp from "@noble/secp256k1";
 import { DefaultRelays } from "Const";
-import { HexKey, TaggedRawEvent } from "@snort/nostr";
+import { FullRelaySettings, HexKey, TaggedRawEvent } from "@snort/nostr";
 import { RelaySettings } from "@snort/nostr";
 import type { AppDispatch, RootState } from "State/Store";
 import { ImgProxySettings } from "Hooks/useImgProxy";
@@ -189,6 +189,11 @@ export interface LoginStore {
    * Users cusom preferences
    */
   preferences: UserPreferences;
+
+  /**
+   * Relays which follows are writing and reading to
+   */
+  followsRelays: Record<HexKey, FullRelaySettings[]>;
 }
 
 export const DefaultImgProxy = {
@@ -232,6 +237,7 @@ export const InitState = {
     imgProxyConfig: DefaultImgProxy,
     defaultRootTab: "posts",
   },
+  followsRelays: {},
 } as LoginStore;
 
 export interface SetRelaysPayload {
@@ -447,6 +453,9 @@ const LoginSlice = createSlice({
       state.preferences = action.payload;
       window.localStorage.setItem(UserPreferencesKey, JSON.stringify(state.preferences));
     },
+    setFollowsRelays: (state, action: PayloadAction<Record<HexKey, FullRelaySettings[]>>) => {
+      state.followsRelays = action.payload;
+    },
   },
 });
 
@@ -469,6 +478,7 @@ export const {
   markNotificationsRead,
   setLatestNotifications,
   setPreferences,
+  setFollowsRelays,
 } = LoginSlice.actions;
 
 export function sendNotification({

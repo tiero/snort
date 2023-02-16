@@ -12,7 +12,6 @@ export type NoteStore = {
 export type UseSubscriptionOptions = {
   leaveOpen: boolean;
   cache: boolean;
-  relay?: string;
 };
 
 interface ReducerArg {
@@ -73,12 +72,12 @@ const DebounceMs = 200;
  * @returns
  */
 export default function useSubscription(
-  sub: Subscriptions | null,
+  sub: Subscriptions | Array<Subscriptions> | null,
   options?: UseSubscriptionOptions
 ): UseSubscriptionState {
   const [state, dispatch] = useReducer(notesReducer, initStore);
   const [debounceOutput, setDebounceOutput] = useState<number>(0);
-  const [subDebounce, setSubDebounced] = useState<Subscriptions>();
+  const [subDebounce, setSubDebounced] = useState<Subscriptions | Array<Subscriptions>>();
   const useCache = useMemo(() => options?.cache === true, [options]);
 
   useEffect(() => {
@@ -96,51 +95,51 @@ export default function useSubscription(
         end: false,
       });
 
-      if (useCache) {
-        // preload notes from db
-        PreloadNotes(subDebounce.Id)
-          .then(ev => {
-            dispatch({
-              type: "EVENT",
-              ev: ev,
-            });
-          })
-          .catch(console.warn);
-      }
-      subDebounce.OnEvent = e => {
-        dispatch({
-          type: "EVENT",
-          ev: e,
-        });
+      const subs = Array.isArray(subDebounce) ? subDebounce : [subDebounce];
+      for (const s of subs) {
         if (useCache) {
-          db.events.put(e);
+          // preload notes from db
+          PreloadNotes(s.Id)
+            .then(ev => {
+              dispatch({
+                type: "EVENT",
+                ev: ev,
+              });
+            })
+            .catch(console.warn);
         }
-      };
-
-      subDebounce.OnEnd = c => {
-        if (!(options?.leaveOpen ?? false)) {
-          c.RemoveSubscription(subDebounce.Id);
-          if (subDebounce.IsFinished()) {
-            System.RemoveSubscription(subDebounce.Id);
+        s.OnEvent = e => {
+          dispatch({
+            type: "EVENT",
+            ev: e,
+          });
+          if (useCache) {
+            db.events.put(e);
           }
-        }
-        dispatch({
-          type: "END",
-          end: true,
-        });
-      };
+        };
 
-      const subObj = subDebounce.ToObject();
-      console.debug("Adding sub: ", subObj);
-      if (options?.relay) {
-        System.AddSubscriptionToRelay(subDebounce, options.relay);
-      } else {
-        System.AddSubscription(subDebounce);
+        s.OnEnd = c => {
+          if (!(options?.leaveOpen ?? false)) {
+            c.RemoveSubscription(s.Id);
+            if (s.IsFinished()) {
+              System.RemoveSubscription(s.Id);
+            }
+          }
+          dispatch({
+            type: "END",
+            end: true,
+          });
+        };
+
+        console.debug("Adding sub: ", s);
+        System.AddSubscription(s);
       }
       return () => {
-        console.debug("Removing sub: ", subObj);
-        subDebounce.OnEvent = () => undefined;
-        System.RemoveSubscription(subDebounce.Id);
+        for (const s of subs) {
+          console.debug("Removing sub: ", s);
+          s.OnEvent = () => undefined;
+          System.RemoveSubscription(s.Id);
+        }
       };
     }
   }, [subDebounce, useCache]);
@@ -148,7 +147,9 @@ export default function useSubscription(
   useEffect(() => {
     if (subDebounce && useCache) {
       return debounce(500, () => {
-        TrackNotesInFeed(subDebounce.Id, state.notes).catch(console.warn);
+        for (const s of Array.isArray(subDebounce) ? subDebounce : [subDebounce]) {
+          TrackNotesInFeed(s.Id, state.notes).catch(console.warn);
+        }
       });
     }
   }, [state, useCache]);

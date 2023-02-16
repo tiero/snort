@@ -6,6 +6,7 @@ import useSubscription from "Feed/Subscription";
 import { useSelector } from "react-redux";
 import { RootState } from "State/Store";
 import { UserPreferences } from "State/Login";
+import useRelaysForFollows from "Hooks/useRelaysForFollows";
 
 export interface TimelineFeedOptions {
   method: "TIME_RANGE" | "LIMIT_UNTIL";
@@ -27,8 +28,9 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
   const [trackingEvents, setTrackingEvent] = useState<u256[]>([]);
   const [trackingParentEvents, setTrackingParentEvents] = useState<u256[]>([]);
   const pref = useSelector<RootState, UserPreferences>(s => s.login.preferences);
+  const relayBuilder = useRelaysForFollows();
 
-  const createSub = useCallback(() => {
+  const createSub = useCallback((): Array<Subscriptions> | null => {
     if (subject.type !== "global" && subject.items.length === 0) {
       return null;
     }
@@ -36,9 +38,13 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
     const sub = new Subscriptions();
     sub.Id = `timeline:${subject.type}:${subject.discriminator}`;
     sub.Kinds = new Set([EventKind.TextNote, EventKind.Repost]);
+    if (options.relay) {
+      sub.Relays = new Set([options.relay]);
+    }
     switch (subject.type) {
       case "pubkey": {
-        sub.Authors = new Set(subject.items);
+        const relays = relayBuilder.pickRelays(subject.items);
+        return Object.entries(relays).map(([k, v]) => {});
         break;
       }
       case "hashtag": {
@@ -55,57 +61,57 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
         break;
       }
     }
-    return sub;
+    return [sub];
   }, [subject.type, subject.items, subject.discriminator, options.relay]);
 
   const sub = useMemo(() => {
     const sub = createSub();
     if (sub) {
-      if (options.method === "LIMIT_UNTIL") {
-        sub.Until = until;
-        sub.Limit = 10;
-      } else {
-        sub.Since = since;
-        sub.Until = until;
-        if (since === undefined) {
-          sub.Limit = 50;
+      for (const s of sub) {
+        if (options.method === "LIMIT_UNTIL") {
+          s.Until = until;
+          s.Limit = 10;
+        } else {
+          s.Since = since;
+          s.Until = until;
+          if (since === undefined) {
+            s.Limit = 50;
+          }
         }
-      }
 
-      if (pref.autoShowLatest) {
-        // copy properties of main sub but with limit 0
-        // this will put latest directly into main feed
-        const latestSub = new Subscriptions();
-        latestSub.Authors = sub.Authors;
-        latestSub.HashTags = sub.HashTags;
-        latestSub.PTags = sub.PTags;
-        latestSub.Kinds = sub.Kinds;
-        latestSub.Search = sub.Search;
-        latestSub.Limit = 1;
-        latestSub.Since = Math.floor(new Date().getTime() / 1000);
-        sub.AddSubscription(latestSub);
+        if (pref.autoShowLatest) {
+          // copy properties of main sub but with limit 0
+          // this will put latest directly into main feed
+          const latestSub = new Subscriptions();
+          latestSub.Authors = s.Authors;
+          latestSub.HashTags = s.HashTags;
+          latestSub.PTags = s.PTags;
+          latestSub.Kinds = s.Kinds;
+          latestSub.Search = s.Search;
+          latestSub.Limit = 1;
+          latestSub.Since = Math.floor(new Date().getTime() / 1000);
+          s.AddSubscription(latestSub);
+        }
       }
     }
     return sub;
   }, [until, since, options.method, pref, createSub]);
 
-  const main = useSubscription(sub, { leaveOpen: true, cache: subject.type !== "global", relay: options.relay });
+  const main = useSubscription(sub, { leaveOpen: true, cache: subject.type !== "global" });
 
   const subRealtime = useMemo(() => {
     const subLatest = createSub();
     if (subLatest && !pref.autoShowLatest) {
-      subLatest.Id = `${subLatest.Id}:latest`;
-      subLatest.Limit = 1;
-      subLatest.Since = Math.floor(new Date().getTime() / 1000);
+      for (let s of subLatest) {
+        s.Id = `${s.Id}:latest`;
+        s.Limit = 1;
+        s.Since = Math.floor(new Date().getTime() / 1000);
+      }
     }
     return subLatest;
   }, [pref, createSub]);
 
-  const latest = useSubscription(subRealtime, {
-    leaveOpen: true,
-    cache: false,
-    relay: options.relay,
-  });
+  const latest = useSubscription(subRealtime, { leaveOpen: true, cache: false });
 
   useEffect(() => {
     // clear store if chaning relays
@@ -124,7 +130,7 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
     return sub ?? null;
   }, [trackingEvents, pref, subject.type]);
 
-  const others = useSubscription(subNext, { leaveOpen: true, cache: subject.type !== "global", relay: options.relay });
+  const others = useSubscription(subNext, { leaveOpen: true, cache: subject.type !== "global" });
 
   const subParents = useMemo(() => {
     if (trackingParentEvents.length > 0) {
@@ -136,7 +142,7 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
     return null;
   }, [trackingParentEvents, subject.type]);
 
-  const parent = useSubscription(subParents, { leaveOpen: false, cache: false, relay: options.relay });
+  const parent = useSubscription(subParents, { leaveOpen: false, cache: false });
 
   useEffect(() => {
     if (main.store.notes.length > 0) {

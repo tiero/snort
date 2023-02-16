@@ -120,7 +120,7 @@ export default function RootPage() {
         subject={timelineSubect}
         postsOnly={tab.value === RootTab.Posts.value}
         method={"TIME_RANGE"}
-        window={undefined}
+        window={isGlobal ? 600 : undefined}
         relay={isGlobal ? relay : undefined}
       />
     </>

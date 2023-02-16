@@ -16,6 +16,7 @@ import {
   setBlocked,
   sendNotification,
   setLatestNotifications,
+  setFollowsRelays,
 } from "State/Login";
 import { RootState } from "State/Store";
 import { mapEventToProfile, MetadataCache } from "State/Users";
@@ -26,6 +27,7 @@ import { getMutedKeys } from "Feed/MuteList";
 import useModeration from "Hooks/useModeration";
 import { unwrap } from "Util";
 import { AnyAction, ThunkDispatch } from "@reduxjs/toolkit";
+import useRelaysFeedFollows from "./RelaysFeedFollows";
 
 /**
  * Managed loading data for the current logged in user
@@ -37,6 +39,7 @@ export default function useLoginFeed() {
     privateKey: privKey,
     latestMuted,
     readNotifications,
+    follows,
   } = useSelector((s: RootState) => s.login);
   const { isMuted } = useModeration();
   const db = useDb();
@@ -266,6 +269,11 @@ export default function useLoginFeed() {
     const dms = dmsFeed.store.notes.filter(a => a.kind === EventKind.DirectMessage);
     dispatch(addDirectMessage(dms));
   }, [dispatch, dmsFeed.store]);
+
+  const fRelays = useRelaysFeedFollows(follows);
+  useEffect(() => {
+    dispatch(setFollowsRelays(fRelays));
+  }, [dispatch, fRelays]);
 }
 
 async function decryptBlocked(raw: TaggedRawEvent, pubKey: HexKey, privKey?: HexKey) {

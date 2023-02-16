@@ -16,7 +16,7 @@ export type CustomHook = (state: Readonly<StateSnapshot>) => void;
 /**
  * Relay settings
  */
-export type RelaySettings = {
+export interface RelaySettings {
   read: boolean;
   write: boolean;
 };

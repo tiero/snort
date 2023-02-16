@@ -172,6 +172,24 @@ export function dedupeByPubkey(events: TaggedRawEvent[]) {
   return deduped.list as TaggedRawEvent[];
 }
 
+/**
+ * Return newest event by pubkey
+ * @param events List of all notes to filter from
+ * @returns
+ */
+export function getLatestByPubkey(events: TaggedRawEvent[]): Map<HexKey, TaggedRawEvent> {
+  const deduped = events.reduce((results: Map<HexKey, TaggedRawEvent>, ev) => {
+    if (!results.has(ev.pubkey)) {
+      const latest = getNewest(events.filter(a => a.pubkey === ev.pubkey));
+      if (latest) {
+        results.set(ev.pubkey, latest);
+      }
+    }
+    return results;
+  }, new Map<HexKey, TaggedRawEvent>());
+  return deduped;
+}
+
 export function unwrap<T>(v: T | undefined | null): T {
   if (v === undefined || v === null) {
     throw new Error("missing value");
@@ -195,4 +213,12 @@ export function getNewest(rawNotes: TaggedRawEvent[]) {
 export function tagFilterOfTextRepost(note: TaggedRawEvent, id?: u256): (tag: string[], i: number) => boolean {
   return (tag, i) =>
     tag[0] === "e" && tag[3] === "mention" && note.content === `#[${i}]` && (id ? tag[1] === id : true);
+}
+
+export function sanitizeRelayUrl(url: string) {
+  try {
+    return new URL(url).toString();
+  } catch {
+    // ignore
+  }
 }
