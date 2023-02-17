@@ -314,7 +314,7 @@
     "defaultMessage": "Anonymous"
   },
   "LF5kYT": {
-    "string": "Other Connections"
+    "defaultMessage": "Other Connections"
   },
   "LgbKvU": {
     "defaultMessage": "Comment"
@@ -674,7 +674,7 @@
     "defaultMessage": "Getting an identifier helps confirm the real you to people who know you. Many people can have a username @jack, but there is only one jack@cash.app."
   },
   "p85Uwy": {
-    "string": "Active Subscriptions"
+    "defaultMessage": "Active Subscriptions"
   },
   "puLNUJ": {
     "defaultMessage": "Pin"
