@@ -2,12 +2,11 @@ import { HexKey } from "@snort/nostr";
 import { useSelector } from "react-redux";
 import { RootState } from "State/Store";
 import { randomSample } from "Util";
-import { v1 } from "uuid";
 
 export type RelayPicker = ReturnType<typeof useRelaysForFollows>;
 
 export default function useRelaysForFollows() {
-  const { followsRelays, relays } = useSelector((s: RootState) => s.login);
+  const { followsRelays } = useSelector((s: RootState) => s.login);
 
   function writeRelays(key: HexKey) {
     if (followsRelays[key]) {
@@ -30,7 +29,7 @@ export default function useRelaysForFollows() {
       const allBest = keys.map(a => {
         return { key: a, relays: writeRelays(a) };
       });
-      const missing = allBest.filter(a => a.relays === undefined);
+      //const missing = allBest.filter(a => a.relays === undefined);
       const hasRelays = allBest.filter(a => a.relays !== undefined);
       const relayUserMap = hasRelays.reduce((acc, v) => {
         for (const r of v.relays!) {
@@ -44,10 +43,10 @@ export default function useRelaysForFollows() {
       }, new Map<string, Set<HexKey>>());
       const topRelays = [...relayUserMap.entries()].sort(([, v], [, v1]) => v1.size - v.size);
 
-      // <relay, key[]>
-      // <key, relay[]> - pick n relays
+      // <relay, key[]> - count keys per relay
+      // <key, relay[]> - pick n top relays
+      // <relay, key[]> - map keys per relay (for subscription filter)
 
-      console.debug("Missing relay lists for: ", missing);
       const userKeyMap: Record<HexKey, Array<string>> = Object.fromEntries(
         keys.map(k => {
           // pick top 3 relays for this key
@@ -58,9 +57,10 @@ export default function useRelaysForFollows() {
           return [k, relaysForKey];
         })
       );
-      console.debug("Picked relays: ", userKeyMap);
 
-      return userKeyMap;
+      const pickedRelays = new Set([...Object.values(userKeyMap).flat()]);
+
+      return Object.fromEntries([...pickedRelays].map(a => [a, relayUserMap.get(a)]));
     },
   };
 }

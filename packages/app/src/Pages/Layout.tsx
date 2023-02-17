@@ -13,7 +13,7 @@ import { System } from "@snort/nostr";
 import ProfileImage from "Element/ProfileImage";
 import useLoginFeed from "Feed/LoginFeed";
 import { totalUnread } from "Pages/MessagesPage";
-import { SearchRelays, SnortPubKey } from "Const";
+import { SnortPubKey } from "Const";
 import useEventPublisher from "Feed/EventPublisher";
 import useModeration from "Hooks/useModeration";
 import { IndexedUDB, useDb } from "State/Users/Db";
@@ -85,8 +85,8 @@ export default function Layout() {
       for (const [k, v] of Object.entries(relays)) {
         System.ConnectToRelay(k, v);
       }
-      for (const [k] of System.Sockets) {
-        if (!relays[k] && !SearchRelays.has(k)) {
+      for (const [k, c] of System.Sockets) {
+        if (!relays[k] && !c.Ephemeral) {
           System.DisconnectRelay(k);
         }
       }

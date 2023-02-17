@@ -30,7 +30,7 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
   const pref = useSelector<RootState, UserPreferences>(s => s.login.preferences);
   const relayBuilder = useRelaysForFollows();
 
-  const createSub = useCallback((): Array<Subscriptions> | null => {
+  const createSub = useCallback((): Array<Subscriptions> | Subscriptions | null => {
     if (subject.type !== "global" && subject.items.length === 0) {
       return null;
     }
@@ -44,8 +44,14 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
     switch (subject.type) {
       case "pubkey": {
         const relays = relayBuilder.pickRelays(subject.items);
-        return Object.entries(relays).map(([k, v]) => {});
-        break;
+        return Object.entries(relays).map(([k, v]) => {
+          const splitSub = new Subscriptions();
+          splitSub.Id = sub.Id;
+          splitSub.Kinds = sub.Kinds;
+          splitSub.Authors = new Set(v);
+          splitSub.Relays = new Set([k]);
+          return splitSub;
+        });
       }
       case "hashtag": {
         sub.HashTags = new Set(subject.items);
@@ -61,13 +67,13 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
         break;
       }
     }
-    return [sub];
+    return sub;
   }, [subject.type, subject.items, subject.discriminator, options.relay]);
 
   const sub = useMemo(() => {
     const sub = createSub();
     if (sub) {
-      for (const s of sub) {
+      for (const s of Array.isArray(sub) ? sub : [sub]) {
         if (options.method === "LIMIT_UNTIL") {
           s.Until = until;
           s.Limit = 10;
@@ -97,12 +103,12 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
     return sub;
   }, [until, since, options.method, pref, createSub]);
 
-  const main = useSubscription(sub, { leaveOpen: true, cache: subject.type !== "global" });
+  const main = useSubscription(sub, { leaveOpen: true, cache: false });
 
   const subRealtime = useMemo(() => {
     const subLatest = createSub();
     if (subLatest && !pref.autoShowLatest) {
-      for (let s of subLatest) {
+      for (const s of Array.isArray(subLatest) ? subLatest : [subLatest]) {
         s.Id = `${s.Id}:latest`;
         s.Limit = 1;
         s.Since = Math.floor(new Date().getTime() / 1000);

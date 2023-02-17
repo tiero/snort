@@ -131,12 +131,10 @@ export default function useSubscription(
           });
         };
 
-        console.debug("Adding sub: ", s);
         System.AddSubscription(s);
       }
       return () => {
         for (const s of subs) {
-          console.debug("Removing sub: ", s);
           s.OnEvent = () => undefined;
           System.RemoveSubscription(s.Id);
         }

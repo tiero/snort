@@ -4,7 +4,7 @@ import Connection, { RelaySettings } from "./Connection";
 import Event from "./Event";
 import EventKind from "./EventKind";
 import { Subscriptions } from "./Subscriptions";
-import { hexToBech32, unwrap } from "./Util";
+import { hexToBech32, sanitizeRelayUrl, unwrap } from "./Util";
 
 // TODO This interface is repeated in State/Users, revisit this.
 export interface MetadataCache extends UserMetadata {
@@ -84,15 +84,33 @@ export class NostrSystem {
    */
   ConnectToRelay(address: string, options: RelaySettings) {
     try {
-      if (!this.Sockets.has(address)) {
-        const c = new Connection(address, options);
-        this.Sockets.set(address, c);
+      const addr = sanitizeRelayUrl(address);
+      if (!this.Sockets.has(addr)) {
+        const c = new Connection(addr, options);
+        this.Sockets.set(addr, c);
         for (const [, s] of this.Subscriptions) {
           c.AddSubscription(s);
         }
       } else {
         // update settings if already connected
-        unwrap(this.Sockets.get(address)).Settings = options;
+        unwrap(this.Sockets.get(addr)).Settings = options;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  /**
+   * 
+   * @param address Relay address URL
+   */
+  ConnectEphemeralRelay(address: string): Connection | undefined {
+    try {
+      const addr = sanitizeRelayUrl(address);
+      if (!this.Sockets.has(addr)) {
+        const c = new Connection(addr, { read: true, write: false }, true);
+        this.Sockets.set(addr, c);
+        return c;
       }
     } catch (e) {
       console.error(e);
@@ -111,12 +129,24 @@ export class NostrSystem {
   }
 
   AddSubscription(sub: Subscriptions) {
+    let noRelays = true;
     for (const [, s] of this.Sockets) {
-      if (!sub.Relays || sub.Relays.has(s.Address)) {
-        s.AddSubscription(sub);
+      if (s.AddSubscription(sub)) {
+        noRelays = false;
       }
     }
     this.Subscriptions.set(sub.Id, sub);
+
+    if (noRelays && sub.Relays) {
+      for (const r of sub.Relays) {
+        if (!this.Sockets.has(r)) {
+          const c = this.ConnectEphemeralRelay(r);
+          if (c) {
+            c.AddSubscription(sub);
+          }
+        }
+      }
+    }
   }
 
   RemoveSubscription(subId: string) {
@@ -139,7 +169,7 @@ export class NostrSystem {
    * Write an event to a relay then disconnect
    */
   async WriteOnceToRelay(address: string, ev: Event) {
-    const c = new Connection(address, { write: true, read: false });
+    const c = new Connection(address, { write: true, read: false }, true);
     await c.SendAsync(ev);
     c.Close();
   }
@@ -230,6 +260,7 @@ export class NostrSystem {
         sub.Id = `profiles:${sub.Id.slice(0, 8)}`;
         sub.Kinds = new Set([EventKind.SetMetadata]);
         sub.Authors = missing;
+        sub.Relays = new Set([...this.Sockets.values()].filter(a => !a.Ephemeral).map(a => a.Address));
         sub.OnEvent = async (e) => {
           const profile = mapEventToProfile(e);
           const userDb = unwrap(this.UserDb);

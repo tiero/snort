@@ -34,6 +34,7 @@ export type StateSnapshot = {
   };
   info?: RelayInfo;
   id: string;
+  subs: Array<Subscriptions>
 };
 
 export default class Connection {
@@ -55,8 +56,10 @@ export default class Connection {
   EventsCallback: Map<u256, (msg: boolean[]) => void>;
   AwaitingAuth: Map<string, boolean>;
   Authed: boolean;
+  Ephemeral: boolean;
+  EphemeralTimeout: ReturnType<typeof setTimeout> | null;
 
-  constructor(addr: string, options: RelaySettings) {
+  constructor(addr: string, options: RelaySettings, ephemeral: boolean = false) {
     this.Id = uuid();
     this.Address = addr;
     this.Socket = null;
@@ -82,7 +85,23 @@ export default class Connection {
     this.EventsCallback = new Map();
     this.AwaitingAuth = new Map();
     this.Authed = false;
+    this.Ephemeral = ephemeral;
     this.Connect();
+
+    if (this.Ephemeral) {
+      this.ResetEphemeralTimeout();
+    }
+  }
+
+  ResetEphemeralTimeout() {
+    if (this.EphemeralTimeout) {
+      clearTimeout(this.EphemeralTimeout);
+    }
+    if (this.Ephemeral) {
+      this.EphemeralTimeout = setTimeout(() => {
+        this.Close();
+      }, 60_000);
+    }
   }
 
   async Connect() {
@@ -97,7 +116,7 @@ export default class Connection {
         if (rsp.ok) {
           const data = await rsp.json();
           for (const [k, v] of Object.entries(data)) {
-            if (v === "unset" || v === "") {
+            if (v === "unset" || v === "" || v === "~") {
               data[k] = undefined;
             }
           }
@@ -106,11 +125,6 @@ export default class Connection {
       }
     } catch (e) {
       console.warn("Could not load relay information", e);
-    }
-
-    if (this.IsClosed) {
-      this._UpdateState();
-      return;
     }
 
     this.IsClosed = false;
@@ -249,20 +263,29 @@ export default class Connection {
    */
   AddSubscription(sub: Subscriptions) {
     if (!this.Settings.read) {
-      return;
+      return false;
     }
 
     // check relay supports search
     if (sub.Search && !this.SupportsNip(Nips.Search)) {
-      return;
+      return false;
     }
 
     if (this.Subscriptions.has(sub.Id)) {
-      return;
+      return false;
+    }
+
+    if (!(sub.Relays?.has(this.Address) ?? true)) {
+      return false;
     }
 
     this._SendSubscription(sub);
     this.Subscriptions.set(sub.Id, sub);
+    this.ResetEphemeralTimeout();
+    if(this.Ephemeral && this.IsClosed) {
+      this.Connect();
+    }
+    return true;
   }
 
   /**
@@ -314,11 +337,12 @@ export default class Connection {
     this.CurrentState.avgLatency =
       this.Stats.Latency.length > 0
         ? this.Stats.Latency.reduce((acc, v) => acc + v, 0) /
-          this.Stats.Latency.length
+        this.Stats.Latency.length
         : 0;
     this.CurrentState.disconnects = this.Stats.Disconnects;
     this.CurrentState.info = this.Info;
     this.CurrentState.id = this.Id;
+    this.CurrentState.subs = [...this.Subscriptions.values()];
     this.Stats.Latency = this.Stats.Latency.slice(-20); // trim
     this.HasStateChange = true;
     this._NotifyState();
