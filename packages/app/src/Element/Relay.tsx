@@ -11,7 +11,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import useRelayState from "Feed/RelayState";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setRelays } from "State/Login";
 import { RootState } from "State/Store";
@@ -30,7 +29,6 @@ export default function Relay(props: RelayProps) {
   const allRelaySettings = useSelector<RootState, Record<string, RelaySettings>>(s => s.login.relays);
   const relaySettings = allRelaySettings[props.addr] ?? System.Sockets.get(props.addr)?.Settings;
   const state = useRelayState(props.addr);
-  const name = useMemo(() => new URL(props.addr).host, [props.addr]);
 
   function configure(o: RelaySettings) {
     dispatch(
@@ -53,7 +51,7 @@ export default function Relay(props: RelayProps) {
         </div>
         <div className="f-grow f-col">
           <div className="flex mb10">
-            <b className="f-2">{name}</b>
+            <b className="f-2">{props.addr}</b>
             <div className="f-1">
               <FormattedMessage {...messages.Write} />
               <span

@@ -28,7 +28,7 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
   const [trackingEvents, setTrackingEvent] = useState<u256[]>([]);
   const [trackingParentEvents, setTrackingParentEvents] = useState<u256[]>([]);
   const pref = useSelector<RootState, UserPreferences>(s => s.login.preferences);
-  const relayBuilder = useRelaysForFollows();
+  const pickedRelays = useRelaysForFollows(subject.type === "pubkey" ? subject.items : []);
 
   const createSub = useCallback((): Array<Subscriptions> | Subscriptions | null => {
     if (subject.type !== "global" && subject.items.length === 0) {
@@ -43,8 +43,7 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
     }
     switch (subject.type) {
       case "pubkey": {
-        const relays = relayBuilder.pickRelays(subject.items);
-        return Object.entries(relays).map(([k, v]) => {
+        return Object.entries(pickedRelays).map(([k, v]) => {
           const splitSub = new Subscriptions();
           splitSub.Id = sub.Id;
           splitSub.Kinds = sub.Kinds;
@@ -68,7 +67,7 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
       }
     }
     return sub;
-  }, [subject.type, subject.items, subject.discriminator, options.relay, relayBuilder]);
+  }, [subject.type, subject.items, subject.discriminator, options.relay, pickedRelays]);
 
   const sub = useMemo(() => {
     const sub = createSub();
