@@ -275,14 +275,18 @@ export default class Connection {
       return false;
     }
 
-    if (!(sub.Relays?.has(this.Address) ?? !this.Ephemeral)) {
+    if (sub.Relays === undefined && this.Ephemeral) {
+      return false;
+    }
+
+    if (!(sub.Relays?.has(this.Address) ?? true)) {
       return false;
     }
 
     this._SendSubscription(sub);
     this.Subscriptions.set(sub.Id, sub);
     this.ResetEphemeralTimeout();
-    if(this.Ephemeral && this.IsClosed) {
+    if (this.Ephemeral && this.IsClosed) {
       this.Connect();
     }
     return true;
