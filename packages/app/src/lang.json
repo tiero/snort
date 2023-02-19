@@ -310,11 +310,11 @@
   "KahimY": {
     "defaultMessage": "Unknown event kind: {kind}"
   },
-  "LXxsbk": {
-    "defaultMessage": "Anonymous"
-  },
   "LF5kYT": {
     "defaultMessage": "Other Connections"
+  },
+  "LXxsbk": {
+    "defaultMessage": "Anonymous"
   },
   "LgbKvU": {
     "defaultMessage": "Comment"
