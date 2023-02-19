@@ -68,7 +68,7 @@ export default function useTimelineFeed(subject: TimelineSubject, options: Timel
       }
     }
     return sub;
-  }, [subject.type, subject.items, subject.discriminator, options.relay]);
+  }, [subject.type, subject.items, subject.discriminator, options.relay, relayBuilder]);
 
   const sub = useMemo(() => {
     const sub = createSub();

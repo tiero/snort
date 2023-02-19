@@ -204,7 +204,7 @@ export function randomSample<T>(coll: T[], size: number) {
 
 export function getNewest(rawNotes: TaggedRawEvent[]) {
   const notes = [...rawNotes];
-  notes.sort((a, b) => a.created_at - b.created_at);
+  notes.sort((a, b) => b.created_at - a.created_at);
   if (notes.length > 0) {
     return notes[0];
   }

@@ -275,7 +275,7 @@ export default class Connection {
       return false;
     }
 
-    if (!(sub.Relays?.has(this.Address) ?? true)) {
+    if (!(sub.Relays?.has(this.Address) ?? !this.Ephemeral)) {
       return false;
     }
 
